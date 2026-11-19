@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+.pytest_cache/
+config.json
+build/
+dist/
+vendor/scrcpy/
+vendor/camera/
+native/build/
+native/softcam/src/**/x64/
+native/softcam/src/**/Win32/
+native/softcam/src/softcam/dist/

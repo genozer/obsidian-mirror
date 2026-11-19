@@ -1,0 +1,202 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later · Copyright (C) 2026 Obsidian Stream Hub -->
+<!-- OBS Browser Source for Obsidian Mirror. Decodes the phone's H.264 with WebCodecs
+     (graphics card) and draws it on a transparent canvas.
+     Options: ?fit=contain|cover|fill  &radius=24 (rounded corners, px)  &debug=1 -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Obsidian Mirror</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+  #dbg { position: fixed; left: 8px; top: 8px; font: 14px/1.4 'Segoe UI', sans-serif;
+         color: #fff; background: rgba(0,0,0,.6); padding: 6px 10px; border-radius: 8px;
+         white-space: pre; display: none; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="dbg"></div>
+<script>
+'use strict';
+const params = new URLSearchParams(location.search);
+const FIT = ['contain', 'cover', 'fill'].includes(params.get('fit')) ? params.get('fit') : 'contain';
+const RADIUS = Math.max(0, Number(params.get('radius')) || 0);
+const DEBUG = params.get('debug') === '1';
+const canvas = document.getElementById('c');
+// No `desynchronized`: such a canvas skips the compositor and can be missing from
+// OBS's offscreen capture (it was blank in a page screenshot during testing).
+const ctx = canvas.getContext('2d', { alpha: true });
+const dbg = document.getElementById('dbg');
+if (DEBUG) dbg.style.display = 'block';
+
+const MSG_AU = 1, MSG_END = 2, MSG_RESET = 3;
+const state = { decoder: null, codec: '', waitKey: true, ts: 0, frames: 0, drawn: 0,
+                hw: '', status: 'connecting', lastDraw: 0, fps: 0 };
+
+function setStatus(s) { state.status = s; showDebug(); }
+function showDebug() {
+  if (!DEBUG) return;
+  dbg.textContent = `status: ${state.status}\ncodec: ${state.codec || '-'} ${state.hw}\n` +
+    `pictures: ${state.frames}  drawn: ${state.drawn}  fps: ${state.fps}\n` +
+    `queue: ${state.decoder ? state.decoder.decodeQueueSize : 0}`;
+}
+
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(innerWidth * dpr);
+  canvas.height = Math.round(innerHeight * dpr);
+}
+addEventListener('resize', resize);
+resize();
+
+// --- H.264 helpers -------------------------------------------------------------------
+function findNal(au, type) {
+  for (let i = 0; i + 3 < au.length; i++) {
+    if (au[i] === 0 && au[i + 1] === 0 && au[i + 2] === 1) {
+      if ((au[i + 3] & 0x1f) === type) return i + 3;
+      i += 2;
+    }
+  }
+  return -1;
+}
+function codecFromAu(au) {
+  const p = findNal(au, 7);   // SPS: profile_idc, constraint flags, level_idc
+  if (p < 0 || p + 3 >= au.length) return '';
+  const hex = (b) => b.toString(16).padStart(2, '0');
+  return 'avc1.' + hex(au[p + 1]) + hex(au[p + 2]) + hex(au[p + 3]);
+}
+
+// --- drawing ------------------------------------------------------------------------
+function draw(frame) {
+  const W = canvas.width, H = canvas.height;
+  const fw = frame.displayWidth, fh = frame.displayHeight;
+  let dw = W, dh = H;
+  if (FIT !== 'fill') {
+    const k = FIT === 'cover' ? Math.max(W / fw, H / fh) : Math.min(W / fw, H / fh);
+    dw = fw * k; dh = fh * k;
+  }
+  const dx = (W - dw) / 2, dy = (H - dh) / 2;
+  ctx.clearRect(0, 0, W, H);
+  if (RADIUS > 0) {
+    ctx.save();
+    ctx.beginPath();
+    const r = RADIUS * (window.devicePixelRatio || 1);
+    ctx.roundRect(Math.max(dx, 0), Math.max(dy, 0), Math.min(dw, W), Math.min(dh, H), r);
+    ctx.clip();
+    ctx.drawImage(frame, dx, dy, dw, dh);
+    ctx.restore();
+  } else {
+    ctx.drawImage(frame, dx, dy, dw, dh);
+  }
+  state.drawn++;
+}
+
+let fpsCount = 0;
+setInterval(() => { state.fps = state.drawn - fpsCount; fpsCount = state.drawn; showDebug(); }, 1000);
+
+// --- decoder ------------------------------------------------------------------------
+function closeDecoder() {
+  if (state.decoder && state.decoder.state !== 'closed') {
+    try { state.decoder.close(); } catch (e) { /* already closed */ }
+  }
+  state.decoder = null;
+  state.waitKey = true;
+}
+
+async function openDecoder(codec) {
+  closeDecoder();
+  const base = { codec, optimizeForLatency: true };
+  let config = { ...base, hardwareAcceleration: 'prefer-hardware' };
+  try {
+    const s = await VideoDecoder.isConfigSupported(config);
+    if (!s.supported) config = base;
+  } catch (e) { config = base; }
+  state.hw = config.hardwareAcceleration ? '(GPU)' : '(auto)';
+  const dec = new VideoDecoder({
+    output: (frame) => { try { draw(frame); } finally { frame.close(); } },
+    error: (e) => { console.warn('decoder error', e); setStatus('decoder error: ' + e.message); closeDecoder(); },
+  });
+  dec.configure(config);
+  state.decoder = dec;
+  state.codec = codec;
+}
+
+async function onPicture(au, key) {
+  state.frames++;
+  if (state.waitKey) {
+    if (!key) return;
+    const codec = codecFromAu(au);
+    if (!codec) return;
+    if (!state.decoder || codec !== state.codec) await openDecoder(codec);
+    state.waitKey = false;
+  }
+  if (!state.decoder) return;
+  state.ts += 16667;
+  state.decoder.decode(new EncodedVideoChunk({ type: key ? 'key' : 'delta', timestamp: state.ts, data: au }));
+}
+
+function onEnd() {
+  closeDecoder();
+  state.codec = '';
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  setStatus('waiting for the phone');
+}
+
+// --- stream reader ------------------------------------------------------------------
+async function run() {
+  if (!('VideoDecoder' in window)) { setStatus('this browser has no WebCodecs'); return; }
+  for (;;) {
+    try {
+      setStatus('connecting');
+      const res = await fetch('/stream', { cache: 'no-store' });
+      if (!res.ok || !res.body) throw new Error('HTTP ' + res.status);
+      const reader = res.body.getReader();
+      let buf = new Uint8Array(0);
+      let magicSeen = false;
+      setStatus('connected');
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        const merged = new Uint8Array(buf.length + value.length);
+        merged.set(buf); merged.set(value, buf.length);
+        buf = merged;
+        let off = 0;
+        if (!magicSeen) {
+          if (buf.length < 4) continue;
+          magicSeen = true; off = 4;
+        }
+        while (buf.length - off >= 6) {
+          const type = buf[off], flags = buf[off + 1];
+          const len = ((buf[off + 2] << 24) | (buf[off + 3] << 16) | (buf[off + 4] << 8) | buf[off + 5]) >>> 0;
+          if (buf.length - off - 6 < len) break;
+          const payload = buf.subarray(off + 6, off + 6 + len);
+          off += 6 + len;
+          if (type === MSG_AU) {
+            if (state.status !== 'playing') setStatus('playing');
+            await onPicture(payload.slice(), (flags & 1) === 1);
+          } else if (type === MSG_END) {
+            onEnd();
+          } else if (type === MSG_RESET) {
+            // A different stream follows (re-encoded copy, or back to the phone's own):
+            // keep the last picture on screen and start again at its key frame.
+            closeDecoder();
+            state.codec = '';
+            setStatus('switching stream');
+          }
+        }
+        buf = buf.slice(off);
+      }
+    } catch (e) {
+      setStatus('disconnected: ' + e.message);
+    }
+    onEnd();
+    setStatus('reconnecting');
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+}
+run();
+</script>
+</body>
+</html>

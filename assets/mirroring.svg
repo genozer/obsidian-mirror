@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Obsidian Mirror: mirroring is on (picture hidden to save the PC) -->
+  <circle cx="100" cy="100" r="62" fill="#16a34a" opacity="0.18"/>
+  <circle cx="100" cy="100" r="44" fill="#22c55e"/>
+  <path d="M80 101 l14 14 l27 -29" fill="none" stroke="#ffffff" stroke-width="10"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
