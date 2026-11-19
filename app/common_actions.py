@@ -84,6 +84,7 @@ class CommonActions:
     _updates = None             # UpdateController, set by the app
     _show_phone_cam = None      # callable: the phone-camera QR dialog, set by the app
     _phone_state = None         # callable → "live 720x1280" etc. for feedback, set by the app
+    _account = None             # app/account.py Account, set by the app
 
     # --- settings -----------------------------------------------------------------
     def _update_config(self, **changes) -> None:
@@ -150,6 +151,10 @@ class CommonActions:
                            checked=self._cfg.update_check)
             auto.toggled.connect(lambda on: self._update_config(update_check=on))
             updates.addAction(auto)
+        acct = self._account
+        if acct is not None and acct.username:
+            who = menu.addMenu(T("Account: @{name}").format(name=acct.username))
+            who.addAction(T("Sign out…"), self.sign_out)
         menu.addAction(T("💬 Send feedback / report a problem…"), self.send_feedback)
         menu.addAction(T("About…"), lambda: AboutDialog(self).exec())
         menu.addAction(T("Quit  (Ctrl+Q)"), QApplication.quit)
@@ -213,6 +218,17 @@ class CommonActions:
 
     def show_camera_help(self) -> None:
         QMessageBox.information(self, T("Virtual camera"), T(CAMERA_HELP))
+
+    def sign_out(self) -> None:
+        box = QMessageBox(QMessageBox.Question, "Obsidian Mirror",
+                          T("Sign out of @{name}? Obsidian Mirror closes and asks to sign in next time.")
+                          .format(name=self._account.username), parent=self)
+        yes = box.addButton(T("Sign out"), QMessageBox.AcceptRole)
+        box.addButton(T("Cancel"), QMessageBox.RejectRole)
+        box.exec()
+        if box.clickedButton() is yes:
+            self._account.logout()
+            QApplication.quit()
 
     def copy_obs_link(self) -> None:
         if self._web is None:

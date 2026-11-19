@@ -145,6 +145,31 @@ TH: dict[str, str] = {
     "About…": "เกี่ยวกับโปรแกรม…",
     # --- feedback (app/feedback.py → dashboard "แจ้งปัญหา") --------------------------------
     "💬 Send feedback / report a problem…": "💬 ส่งฟีดแบ็ก / แจ้งปัญหา…",
+    # sign-in (app/account.py · app/login_dialog.py)
+    "Account: @{name}": "บัญชี: @{name}",
+    "Sign out…": "ออกจากระบบ…",
+    "Sign out": "ออกจากระบบ",
+    "Sign out of @{name}? Obsidian Mirror closes and asks to sign in next time.":
+        "ออกจากระบบ @{name} ใช่ไหม? โปรแกรมจะปิด และเปิดครั้งหน้าต้องเข้าสู่ระบบใหม่",
+    "Sign in to Obsidian Mirror": "เข้าสู่ระบบ Obsidian Mirror",
+    "Use your Obsidian Hub account (free on every plan). The browser opens for the sign-in; Google accounts work too.":
+        "ใช้บัญชี Obsidian Hub ของคุณ (ใช้ฟรีทุกแพ็กเกจ) · ระบบจะเปิดเบราว์เซอร์ให้เข้าสู่ระบบ ใช้บัญชี Google ได้",
+    "Sign in with the browser": "เข้าสู่ระบบผ่านเบราว์เซอร์",
+    "Open the browser again": "เปิดเบราว์เซอร์อีกครั้ง",
+    "Quit": "ปิดโปรแกรม",
+    "Checking your account…": "กำลังตรวจสอบบัญชี…",
+    "Finish signing in in the browser, then come back here.": "เข้าสู่ระบบและกด \"อนุญาต\" ในเบราว์เซอร์ให้เสร็จ แล้วกลับมาที่นี่",
+    "Sign-in took too long. Please try again.": "รอนานเกินไป กรุณาลองเข้าสู่ระบบอีกครั้ง",
+    "Sign-in did not finish. Please try again.": "เข้าสู่ระบบไม่สำเร็จ กรุณาลองอีกครั้ง",
+    "Could not reach Obsidian Hub. Check the internet and try again.": "เชื่อมต่อ Obsidian Hub ไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง",
+    "Could not reach Obsidian Hub for a while. Connect to the internet, then sign in.":
+        "เชื่อมต่อ Obsidian Hub ไม่ได้มาหลายวันแล้ว ต่ออินเทอร์เน็ตแล้วเข้าสู่ระบบอีกครั้ง",
+    "Phone Cast is switched off for this account.": "Phone Cast ถูกปิดใช้งานสำหรับบัญชีนี้",
+    "Phone Cast is switched off for this account. Contact us through \"Report a problem\" in the dashboard.":
+        "Phone Cast ถูกปิดใช้งานสำหรับบัญชีนี้ ติดต่อเราได้ที่เมนู \"แจ้งปัญหา\" ใน dashboard",
+    "Signed in. You can close this tab and go back to Obsidian Mirror.": "เข้าสู่ระบบแล้ว ปิดแท็บนี้แล้วกลับไปที่ Obsidian Mirror ได้เลย",
+    "This sign-in link is not valid. Press \"Sign in\" in Obsidian Mirror again.":
+        "ลิงก์เข้าสู่ระบบนี้ใช้ไม่ได้ กด \"เข้าสู่ระบบ\" ในโปรแกรม Obsidian Mirror อีกครั้ง",
     "Send feedback": "ส่งฟีดแบ็ก",
     "The dashboard opens at “แจ้งปัญหา” (log in if asked). Type what happened and press send — "
     "the team answers you in that chat.\n\nThese details are attached so we can fix it faster "

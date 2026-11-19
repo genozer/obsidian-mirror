@@ -45,6 +45,7 @@ class DisplayController:
         self.last_image = None
         self.streaming = False
         self.updates = None          # UpdateController, set by main() before the first window
+        self.account = None          # app/account.py Account, set by main()
         self.camera = None           # VirtualCamera while it is on
         self.phone_link = None       # PhoneCamLink when the camera takes the phone_cam page
         self.preview_on = cfg.preview_mode != "off"
@@ -63,6 +64,7 @@ class DisplayController:
         win._updates = self.updates
         win._show_phone_cam = self.show_phone_cam
         win._phone_state = self.phone_state
+        win._account = self.account
         win.view.on_target = self._set_target
         win.config_changed.connect(self.on_config)
         win.restart_requested.connect(self.receiver.restart)
@@ -269,6 +271,12 @@ def main() -> int:
 
     cfg = load_config()
     set_language(cfg.language)
+    # Locked until the streamer signs in with an Obsidian Hub account (free plan works).
+    from .account import Account
+    from .login_dialog import LoginDialog
+    account = Account()
+    if not LoginDialog(account).run():
+        return 0
     receiver = SourceManager(cfg)   # iPhone (AirPlay) or Android (USB), picked in the menu
     server = VideoServer(cfg.video_port, use_gpu=cfg.use_gpu)
     web = None
@@ -282,6 +290,8 @@ def main() -> int:
     updates = UpdateController(display)
     display.updates = updates
     display.window._updates = updates
+    display.account = account
+    display.window._account = account
     links = LinkMonitor()
 
     def on_frame() -> None:
