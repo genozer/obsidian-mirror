@@ -40,7 +40,7 @@ APP_ID = "obsidian-mirror"
 DEFAULT_URL = "https://obs-hub.web.app/mirror/latest.json"
 # Public keys (raw Ed25519, base64). The private key never leaves the release PC.
 # More than one is allowed so the key can be changed without stranding old installs.
-TRUSTED_KEYS = ("dpuQD4zcDURfgY4iRajjk8XsZZdF38oVHXFbQBF8KVA=",)
+TRUSTED_KEYS = ("8F1cLAoPIMa92VQPhfncIoAW0KllP4VonrKyoZ5FznI=",)
 NOTE_LIMIT = 64 * 1024
 INSTALLER_LIMIT = 600 * 1024 * 1024
 CHECK_EVERY_MS = 6 * 3600 * 1000
