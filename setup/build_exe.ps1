@@ -53,6 +53,7 @@ try {
         --icon (Join-Path $root "assets\icon.ico") `
         --version-file $versionFile `
         --add-data ((Join-Path $root "assets") + ";assets") `
+        --add-data ((Join-Path $root "app\obs_page.html") + ";app") `
         --collect-all aiortc --collect-all aioice --collect-all pylibsrtp `
         --collect-submodules socketio --collect-submodules engineio `
         --hidden-import aiohttp --hidden-import segno `

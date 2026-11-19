@@ -83,6 +83,7 @@ class CommonActions:
     _peek_preview = None        # callable: show the picture for a minute, set by the app
     _updates = None             # UpdateController, set by the app
     _show_phone_cam = None      # callable: the phone-camera QR dialog, set by the app
+    _phone_state = None         # callable → "live 720x1280" etc. for feedback, set by the app
 
     # --- settings -----------------------------------------------------------------
     def _update_config(self, **changes) -> None:
@@ -149,6 +150,7 @@ class CommonActions:
                            checked=self._cfg.update_check)
             auto.toggled.connect(lambda on: self._update_config(update_check=on))
             updates.addAction(auto)
+        menu.addAction(T("💬 Send feedback / report a problem…"), self.send_feedback)
         menu.addAction(T("About…"), lambda: AboutDialog(self).exec())
         menu.addAction(T("Quit  (Ctrl+Q)"), QApplication.quit)
 
@@ -294,6 +296,28 @@ class CommonActions:
                 how=how, iface=link.interface, ip=link.pc_ip)
         text = T("USB_HELP") if current() == "th" else USB_HELP
         QMessageBox.information(self, T("Cable connection"), text.format(name=self._cfg.device_name, state=state))
+
+    def send_feedback(self) -> None:
+        """Open the dashboard's support chat with this program's details (app/feedback.py)."""
+        from .feedback import build_diag, feedback_url
+        state = ""
+        try:
+            state = self._phone_state() if self._phone_state is not None else ""
+        except Exception:                     # noqa: BLE001 - feedback must always open
+            state = ""
+        diag = build_diag(self._cfg, list(self._log_provider() or []), state)
+        details = "\n".join(f"• {k}: {v}" for k, v in diag.items())
+        box = QMessageBox(self)
+        box.setWindowTitle(T("Send feedback"))
+        box.setText(T("The dashboard opens at “แจ้งปัญหา” (log in if asked). Type what happened and press send — "
+                      "the team answers you in that chat.\n\nThese details are attached so we can fix it faster "
+                      "(no passwords, no addresses):"))
+        box.setInformativeText(details)
+        go = box.addButton(T("Open the dashboard"), QMessageBox.AcceptRole)
+        box.addButton(T("Cancel"), QMessageBox.RejectRole)
+        box.exec()
+        if box.clickedButton() is go:
+            webbrowser.open(feedback_url(diag))
 
     def show_log(self) -> None:
         if self._log_dialog is None:

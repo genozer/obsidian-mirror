@@ -143,6 +143,17 @@ TH: dict[str, str] = {
     "Restart receiver": "เริ่มตัวรับภาพใหม่",
     "UxPlay log": "บันทึกของ UxPlay",
     "About…": "เกี่ยวกับโปรแกรม…",
+    # --- feedback (app/feedback.py → dashboard "แจ้งปัญหา") --------------------------------
+    "💬 Send feedback / report a problem…": "💬 ส่งฟีดแบ็ก / แจ้งปัญหา…",
+    "Send feedback": "ส่งฟีดแบ็ก",
+    "The dashboard opens at “แจ้งปัญหา” (log in if asked). Type what happened and press send — "
+    "the team answers you in that chat.\n\nThese details are attached so we can fix it faster "
+    "(no passwords, no addresses):":
+        "จะเปิด dashboard ที่เมนู “แจ้งปัญหา” (ถ้าขึ้นหน้า login ให้ login ก่อน) พิมพ์ว่าเกิดอะไรขึ้นแล้วกดส่ง — "
+        "ทีมพัฒนาจะตอบกลับในแชทนั้น\n\nแนบข้อมูลเหล่านี้ไปด้วยเพื่อให้แก้ได้เร็วขึ้น "
+        "(ไม่มีรหัสผ่าน ไม่มีที่อยู่ IP):",
+    "Open the dashboard": "เปิด dashboard",
+    "Cancel": "ยกเลิก",
     "Quit  (Ctrl+Q)": "ออก  (Ctrl+Q)",
     "Language / ภาษา": "ภาษา / Language",
     "Automatic (Windows)": "อัตโนมัติ (ตาม Windows)",

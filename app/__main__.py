@@ -62,6 +62,7 @@ class DisplayController:
         win._peek_preview = self.peek_preview
         win._updates = self.updates
         win._show_phone_cam = self.show_phone_cam
+        win._phone_state = self.phone_state
         win.view.on_target = self._set_target
         win.config_changed.connect(self.on_config)
         win.restart_requested.connect(self.receiver.restart)
@@ -144,6 +145,14 @@ class DisplayController:
                "waiting": "Phone camera: waiting for the phone…"}.get(state)
         if msg:
             self.receiver.log_line.emit(T(msg))
+
+    def phone_state(self) -> str:
+        """For feedback: the phone camera's state and picture size ("" when not in use)."""
+        link = self.phone_link
+        if link is None:
+            return ""
+        w, h = link.size
+        return f"{link.state} {w}x{h}" if w else link.state
 
     def show_phone_cam(self) -> None:
         from .phone_cam_dialog import PhoneCamDialog

@@ -381,3 +381,14 @@ def test_phone_view_cached_drawing_matches_full_drawing():
     pa = np.frombuffer(a.constBits(), np.uint8)[: a.sizeInBytes()].astype(int)
     pb = np.frombuffer(b.constBits(), np.uint8)[: b.sizeInBytes()].astype(int)
     assert np.abs(pa - pb).mean() < 1.5       # only anti-aliasing at the screen corners differs
+
+
+def test_every_non_python_file_in_app_is_packed_into_the_exe():
+    """PyInstaller only takes .py files: the OBS page was missing from 1.4.0-obs.1 ("page missing")."""
+    root = Path(__file__).resolve().parent.parent
+    script = (root / "setup" / "build_exe.ps1").read_text(encoding="utf-8")
+    extra = [p.name for p in (root / "app").iterdir()
+             if p.is_file() and p.suffix not in (".py", ".pyc")]
+    assert extra, "expected app/obs_page.html"
+    for name in extra:
+        assert f"app\{name}" in script, f"{name} is not added with --add-data in setup/build_exe.ps1"
