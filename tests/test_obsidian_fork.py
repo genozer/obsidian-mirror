@@ -265,6 +265,26 @@ def test_http_page_status_and_stream_end_to_end(qapp, stream):
         web.stop()
 
 
+# Copied from TikTok LIVE Studio 1.40.2 (static/js/modal.*.js, "Add link"): not anchored,
+# needs a dot + 2-6 letters somewhere. 127.0.0.1/obs fails it ("Enter correct URL").
+TIKTOK_LINK_RULE = re.compile(
+    r"(http(s)?:\/\/)?[(www.)?a-zA-Z0-9@:%._+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_+.~#?&//=]*)", re.I)
+
+
+def test_obs_link_is_accepted_by_tiktok_live_studio_and_old_link_still_opens(qapp):
+    web = WebSource(_free_port())
+    assert not TIKTOK_LINK_RULE.search(f"http://127.0.0.1:{web.port}/obs")     # what failed
+    for link in (web.url, web.url + "?debug=1"):
+        assert TIKTOK_LINK_RULE.search(link), link
+    assert web.start()
+    try:
+        for path in ("/obs.html", "/obs", "/obs.html?debug=1"):
+            page = urllib.request.urlopen(f"http://127.0.0.1:{web.port}{path}", timeout=5).read().decode()
+            assert "VideoDecoder" in page, path
+    finally:
+        web.stop()
+
+
 def test_preview_off_decodes_nothing_but_still_feeds_obs(qapp, stream):
     vport = _free_port()
     server = VideoServer(vport, use_gpu=False)
@@ -391,4 +411,4 @@ def test_every_non_python_file_in_app_is_packed_into_the_exe():
              if p.is_file() and p.suffix not in (".py", ".pyc")]
     assert extra, "expected app/obs_page.html"
     for name in extra:
-        assert f"app\{name}" in script, f"{name} is not added with --add-data in setup/build_exe.ps1"
+        assert f"app\\{name}" in script, f"{name} is not added with --add-data in setup/build_exe.ps1"

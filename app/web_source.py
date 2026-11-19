@@ -4,7 +4,7 @@
 
 The H.264 that UxPlay forwards (split into whole pictures by VideoServer) is passed on
 untouched to a small web page
-(`http://127.0.0.1:<port>/obs`). The page decodes it with WebCodecs, i.e. on the
+(`http://127.0.0.1:<port>/obs.html`). The page decodes it with WebCodecs, i.e. on the
 graphics card inside OBS's own browser, so OBS needs no window capture and this app
 does no extra work per viewer.
 
@@ -286,7 +286,7 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802 - http.server API
         path = self.path.split("?", 1)[0]
-        if path in ("/", "/obs"):
+        if path in ("/", "/obs", "/obs.html"):
             try:
                 body = PAGE_PATH.read_bytes()
             except OSError:
@@ -335,7 +335,9 @@ class WebSource:
 
     @property
     def url(self) -> str:
-        return f"http://127.0.0.1:{self.port}/obs"
+        # ".html": TikTok LIVE Studio only takes a link with a ".com"-like part (2-6 letters
+        # after a dot) and refuses 127.0.0.1/obs. "/obs" still works for links already in OBS.
+        return f"http://127.0.0.1:{self.port}/obs.html"
 
     @property
     def running(self) -> bool:

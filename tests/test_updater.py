@@ -116,18 +116,78 @@ def test_changed_or_foreign_notes_are_refused():
             updater.parse_note(raw, KEYS)
 
 
-def test_release_tool_refuses_a_key_the_app_does_not_trust(tmp_path, capsys):
-    from cryptography.hazmat.primitives import serialization
-    key_file = tmp_path / "k.pem"
-    key_file.write_bytes(KEY.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
-                                           serialization.NoEncryption()))
+PASS = "correct horse battery"
+
+
+def answers(*said):
+    """Stands in for getpass: hands out the typed answers in order."""
+    it = iter(said)
+    return lambda prompt="": next(it)
+
+
+def sign_args(tmp_path, key_file):
+    import argparse
     exe = tmp_path / "s.exe"
     exe.write_bytes(INSTALLER)
-    import argparse
-    args = argparse.Namespace(key=str(key_file), installer=str(exe), url="https://x.invalid/s.exe",
+    return argparse.Namespace(key=str(key_file), installer=str(exe), url="https://x.invalid/s.exe",
                               th="ท", en="e", min_version="", version="", out=str(tmp_path / "l.json"))
-    assert release_update.sign(args) == 1
+
+
+def plain_key_file(tmp_path, key=KEY, name="k.pem"):
+    from cryptography.hazmat.primitives import serialization
+    f = tmp_path / name
+    f.write_bytes(key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+                                    serialization.NoEncryption()))
+    return f
+
+
+def test_release_tool_refuses_a_key_the_app_does_not_trust(tmp_path, capsys):
+    key_file = tmp_path / "k.pem"
+    key_file.write_bytes(release_update.locked_pem(KEY, PASS.encode()))
+    assert release_update.sign(sign_args(tmp_path, key_file), ask=answers(PASS)) == 1
     assert "TRUSTED_KEYS" in capsys.readouterr().out
+
+
+def test_signing_needs_the_passphrase(tmp_path, monkeypatch):
+    monkeypatch.setattr(updater, "TRUSTED_KEYS", KEYS)
+    key_file = tmp_path / "k.pem"
+    key_file.write_bytes(release_update.locked_pem(KEY, PASS.encode()))
+    assert release_update.is_locked(key_file.read_bytes())
+    with pytest.raises(SystemExit):                                     # 3 wrong tries
+        release_update.sign(sign_args(tmp_path, key_file), ask=answers("a", "b", "c"))
+    assert release_update.sign(sign_args(tmp_path, key_file), ask=answers("nope", PASS)) == 0
+    updater.parse_note((tmp_path / "l.json").read_bytes(), keys=KEYS)
+
+
+def test_a_key_without_passphrase_is_not_used_for_signing(tmp_path):
+    with pytest.raises(SystemExit, match="protect"):
+        release_update.sign(sign_args(tmp_path, plain_key_file(tmp_path)), ask=answers())
+
+
+def test_protect_locks_the_key_and_its_backups_with_the_same_key_inside(tmp_path, monkeypatch, capsys):
+    import argparse
+    import os
+    monkeypatch.setattr(updater, "TRUSTED_KEYS", KEYS)
+    main, backup = plain_key_file(tmp_path), plain_key_file(tmp_path, name="backup.pem")
+    os.chmod(backup, 0o400)                                             # backups are read-only
+    args = argparse.Namespace(key=str(main), paths=[str(backup)])
+    # too short, then a typo, then right
+    assert release_update.protect(args, ask=answers("short", PASS, PASS + "x", PASS, PASS)) == 0
+    for f in (main, backup):
+        assert release_update.is_locked(f.read_bytes())
+        assert release_update.public_b64(release_update.load_key(f, answers(PASS))) == KEYS[0]
+    assert not list(tmp_path.glob("*.tmp"))
+    assert release_update.protect(args, ask=answers()) == 1             # already locked: untouched
+
+
+def test_protect_changes_nothing_when_the_files_hold_different_keys(tmp_path, monkeypatch):
+    import argparse
+    monkeypatch.setattr(updater, "TRUSTED_KEYS", KEYS)
+    main = plain_key_file(tmp_path)
+    other = plain_key_file(tmp_path, Ed25519PrivateKey.generate(), "other.pem")
+    before = main.read_bytes(), other.read_bytes()
+    assert release_update.protect(argparse.Namespace(key=str(main), paths=[str(other)]), ask=answers()) == 1
+    assert (main.read_bytes(), other.read_bytes()) == before
 
 
 # --- download ----------------------------------------------------------------------------
