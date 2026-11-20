@@ -7,7 +7,7 @@ A modified version of iPhone Mirror by Ivan Sorokin (sorokin dev),
 https://github.com/sorokin2486/iphone-mirror (GPL-3.0-or-later).
 """
 
-__version__ = "1.4.0-obs.4"
+__version__ = "1.4.0-obs.5"
 __app_name__ = "Obsidian Mirror"
 __upstream_version__ = "1.4.0"
 __author__ = "Сорокин Иван"

@@ -88,13 +88,39 @@ def load_key(path, ask=getpass.getpass, allow_plain=False):
         if not allow_plain:
             raise SystemExit(f"{path} has no passphrase. Run first:  python setup/release_update.py protect")
         return serialization.load_pem_private_key(data, password=None)
-    for _ in range(3):
+    tries = 0
+    while tries < 3:
+        typed = ask(f"Passphrase for {path}: ")
+        if not typed:                      # Enter by mistake: ask again, it is not a try
+            print("Nothing typed. Type the passphrase, then press Enter.")
+            continue
+        tries += 1
         try:
-            return serialization.load_pem_private_key(
-                data, password=ask(f"Passphrase for {path}: ").encode("utf-8"))
-        except ValueError:
+            return serialization.load_pem_private_key(data, password=typed.encode("utf-8"))
+        except (ValueError, TypeError):
             print("Wrong passphrase.")
     raise SystemExit("Wrong passphrase 3 times.")
+
+
+def change_passphrase(args, ask=getpass.getpass) -> int:
+    """New passphrase for --key and its backup copies (same key inside, old passphrase needed)."""
+    paths = [Path(args.key)] + [Path(p) for p in args.paths]
+    keys = [load_key(p, ask) for p in paths]
+    if len({public_b64(k) for k in keys}) != 1:
+        print("These files hold different keys — nothing changed.")
+        return 1
+    passphrase = new_passphrase(ask)
+    from cryptography.hazmat.primitives import serialization
+    for path, key in zip(paths, keys):
+        new = locked_pem(key, passphrase)
+        assert public_b64(serialization.load_pem_private_key(new, password=passphrase)) == public_b64(key)
+        tmp = path.with_name(path.name + ".tmp")
+        tmp.write_bytes(new)
+        os.chmod(path, 0o600)
+        os.replace(tmp, path)
+        os.chmod(path, 0o400)
+        print(f"New passphrase: {path}  sha256 {hashlib.sha256(new).hexdigest().upper()}")
+    return 0
 
 
 def protect(args, ask=getpass.getpass) -> int:
@@ -168,6 +194,9 @@ def main() -> int:
     pr = sub.add_parser("protect", help="add a passphrase to --key and these backup copies")
     pr.add_argument("paths", nargs="*")
     pr.set_defaults(fn=protect)
+    cp = sub.add_parser("passwd", help="change the passphrase of --key and these backup copies")
+    cp.add_argument("paths", nargs="*")
+    cp.set_defaults(fn=change_passphrase)
     s = sub.add_parser("sign")
     s.add_argument("installer")
     s.add_argument("--url", required=True)

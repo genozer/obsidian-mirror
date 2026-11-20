@@ -50,8 +50,13 @@ Compression=lzma2/max
 SolidCompression=yes
 LZMAUseSeparateProcess=yes
 WizardStyle=modern
-; Ask before closing a running Obsidian Mirror during an update.
-CloseApplications=yes
+; Close only our own programs (Obsidian Mirror, UxPlay, adb) during an update. Checking the
+; DLLs too made Restart Manager list TikTok LIVE Studio and Chrome (they keep the virtual
+; camera DLL open); they cannot be closed and the silent update gave up without a word
+; (1.4.0-obs.4 on 2026-11-20). The camera DLLs are replaced at the next restart instead.
+; "force": no question box (it is hidden in /SILENT and its default is Abort).
+CloseApplications=force
+CloseApplicationsFilter=*.exe
 RestartApplications=no
 
 [Languages]
@@ -123,3 +128,31 @@ Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{localappdata}\{#AppName}"
+
+[Code]
+var
+  Installed: Boolean;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+    Installed := True;
+end;
+
+// In-app update that did not finish (cancelled, error): the program had already closed
+// itself, so start the version that is still installed instead of leaving nothing on screen.
+procedure DeinitializeSetup();
+var
+  Exe: String;
+  Rc: Integer;
+begin
+  if WizardSilent and not Installed then
+  begin
+    try
+      Exe := ExpandConstant('{app}\{#AppExe}');
+      if FileExists(Exe) then
+        ExecAsOriginalUser(Exe, '', ExtractFileDir(Exe), SW_SHOWNORMAL, ewNoWait, Rc);
+    except
+    end;
+  end;
+end;

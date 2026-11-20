@@ -159,6 +159,29 @@ def test_signing_needs_the_passphrase(tmp_path, monkeypatch):
     updater.parse_note((tmp_path / "l.json").read_bytes(), keys=KEYS)
 
 
+def test_enter_with_nothing_typed_asks_again_instead_of_crashing(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(updater, "TRUSTED_KEYS", KEYS)
+    key_file = tmp_path / "k.pem"
+    key_file.write_bytes(release_update.locked_pem(KEY, PASS.encode()))
+    # Enter twice, two wrong, then right: empty presses do not use up the 3 tries
+    assert release_update.sign(sign_args(tmp_path, key_file), ask=answers("", "", "x", "y", PASS)) == 0
+    assert "Nothing typed" in capsys.readouterr().out
+
+
+def test_change_passphrase_keeps_the_same_key(tmp_path, monkeypatch):
+    import argparse
+    main, backup = tmp_path / "k.pem", tmp_path / "b.pem"
+    for f in (main, backup):
+        f.write_bytes(release_update.locked_pem(KEY, PASS.encode()))
+    new = "a brand new passphrase"
+    args = argparse.Namespace(key=str(main), paths=[str(backup)])
+    assert release_update.change_passphrase(args, ask=answers(PASS, PASS, new, new)) == 0
+    for f in (main, backup):
+        with pytest.raises(SystemExit):                             # old one no longer opens it
+            release_update.load_key(f, answers(PASS, PASS, PASS))
+        assert release_update.public_b64(release_update.load_key(f, answers(new))) == KEYS[0]
+
+
 def test_a_key_without_passphrase_is_not_used_for_signing(tmp_path):
     with pytest.raises(SystemExit, match="protect"):
         release_update.sign(sign_args(tmp_path, plain_key_file(tmp_path)), ask=answers())

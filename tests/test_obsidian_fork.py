@@ -412,3 +412,17 @@ def test_every_non_python_file_in_app_is_packed_into_the_exe():
     assert extra, "expected app/obs_page.html"
     for name in extra:
         assert f"app\\{name}" in script, f"{name} is not added with --add-data in setup/build_exe.ps1"
+
+
+def test_silent_update_never_stops_on_other_programs_holding_the_camera():
+    """1.4.0-obs.4: TikTok LIVE Studio / Chrome keep the camera DLL open; Restart Manager
+    listed them, could not close them and the hidden question box answered Abort."""
+    iss = (APP.parent / "installer" / "ObsidianMirror.iss").read_text(encoding="utf-8-sig")
+    settings = dict(re.findall(r"^(\w+)=(.*)$", iss, re.M))
+    assert settings.get("CloseApplicationsFilter") == "*.exe"      # our programs only, not DLL users
+    assert settings.get("CloseApplications") == "force"            # no hidden Abort/Retry/Ignore box
+    joined = iss.replace("\\\n", " ")                               # join "\" continued lines
+    for dll in ("obsidian_camera64.dll", "obsidian_camera32.dll"):
+        line = next(l for l in joined.splitlines() if l.startswith("Source:") and dll in l)
+        assert "restartreplace" in line                              # in use = replaced at restart
+    assert "procedure DeinitializeSetup" in iss and "WizardSilent and not Installed" in iss
